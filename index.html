@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>드렁큰도우 · 스토어로 이동</title>
+<meta property="og:title" content="드렁큰도우 막걸리 술빵">
+<meta property="og:description" content="네이버 스마트스토어로 이동합니다">
+<style>
+  :root{--ecru:#f6efe4;--indigo:#071633;--jade:#b6e4c7}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:var(--ecru);color:var(--indigo);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;text-align:center;padding:24px}
+  .wrap{max-width:360px;width:100%}
+  .logo{font-weight:700;letter-spacing:.18em;font-size:20px;margin-bottom:28px}
+  p{font-size:17px;line-height:1.6;margin:0 0 28px}
+  .btn{display:block;width:100%;padding:16px;border-radius:999px;border:2px solid var(--indigo);
+    background:var(--jade);color:var(--indigo);font-size:17px;font-weight:700;text-decoration:none;margin-bottom:12px}
+  .btn2{display:block;width:100%;padding:14px;border-radius:999px;border:2px solid var(--indigo);
+    background:transparent;color:var(--indigo);font-size:16px;font-weight:600;text-decoration:none;margin-bottom:18px}
+  .sub{display:block;font-size:15px;color:var(--indigo);opacity:.7;text-decoration:underline}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">DRUNKEN DOUGH</div>
+  <p id="msg">네이버 앱으로 이동하고 있어요.<br>잠시만 기다려 주세요.</p>
+  <div id="manual" class="hide">
+    <a id="appBtn" class="btn" href="#">네이버 앱에서 열기</a>
+    <a id="safariBtn" class="hide" href="#">사파리에서 열기</a>
+    <a id="webBtn" class="sub" href="#">여기서 계속 보기</a>
+  </div>
+</div>
+<script>
+(function () {
+  // 이동할 수 있는 주소는 아래 목록만 허용 (다른 사이트로의 악용 방지)
+  var STORE = "https://smartstore.naver.com/drunkendough";
+  var PAGES = {
+    home:   STORE,
+    mix5:   STORE + "/products/13895902167",  // 모둠 5개입
+    mix10:  STORE + "/products/13628119902",  // 모둠 10개입
+    flavor5:  STORE + "/products/13896287249", // 맛별 그룹 (5개 선택 상태로 열림)
+    flavor10: STORE + "/products/13896287250"  // 맛별 그룹 (10개 선택 상태로 열림)
+  };
+
+  var qs = new URLSearchParams(location.search);
+  var key = qs.get("p") || "home";
+  var base = PAGES[key] || PAGES.home;
+
+  // p 외의 값(nt_source 등 추적 매개변수)은 그대로 스토어 주소에 붙인다
+  qs.delete("p");
+  // 주소만 눌렀을 때(추적 값 없음)는 인스타 프로필 유입으로 기록
+  if (!qs.get("nt_source")) { qs.set("nt_source", "instagram"); qs.set("nt_medium", "bio"); }
+  var rest = qs.toString();
+  var target = base + (rest ? (base.indexOf("?") > -1 ? "&" : "?") + rest : "");
+
+  var ua = navigator.userAgent || "";
+  var isAndroid = /Android/i.test(ua);
+  var isIOS = /iPhone|iPad|iPod/i.test(ua);
+  var inNaverApp = /NAVER\(inapp/i.test(ua);
+  var inSocialApp = /Instagram|KAKAOTALK|FBAN|FBAV|Barcelona|Threads|Line\//i.test(ua);
+
+  var enc = encodeURIComponent(target);
+  var iosScheme = "naversearchapp://inappbrowser?url=" + enc + "&target=new&version=6";
+  var androidIntent = "intent://inappbrowser?url=" + enc + "&target=new&version=6" +
+    "#Intent;scheme=naversearchapp;action=android.intent.action.VIEW;" +
+    "category=android.intent.category.BROWSABLE;package=com.nhn.android.search;" +
+    "S.browser_fallback_url=" + enc + ";end";
+
+  var appLink = isAndroid ? androidIntent : iosScheme;
+  var inInstagram = /Instagram|Barcelona|Threads|FBAN|FBAV/i.test(ua);
+  document.getElementById("appBtn").href = appLink;
+  document.getElementById("webBtn").href = target;
+  // 아이폰 사파리로 열기 (iOS 17 이상)
+  var safariBtn = document.getElementById("safariBtn");
+  if (safariBtn) safariBtn.href = "x-safari-" + target;
+
+  // 인스타·카톡 등 앱 안 브라우저가 아니거나, 이미 네이버 앱 안이면 바로 스토어로
+  if (!inSocialApp || inNaverApp || (!isAndroid && !isIOS)) {
+    location.replace(target);
+    return;
+  }
+
+  var left = false;
+  document.addEventListener("visibilitychange", function () { if (document.hidden) left = true; });
+
+  // 아이폰 인스타는 자동 이동을 막기 때문에, 손님이 버튼을 직접 누르게 한다
+  if (isIOS && inInstagram) {
+    document.getElementById("msg").innerHTML = "인스타그램 안에서는 로그인이 필요해요.<br>네이버 앱에서 열면 바로 구매할 수 있어요.";
+    document.getElementById("manual").className = "";
+    if (safariBtn) safariBtn.className = "btn2";
+    return;
+  }
+
+  // 네이버 앱 열기 시도
+  location.href = appLink;
+
+  // 앱이 열리지 않으면 버튼을 보여 주고, 조금 더 지나면 스토어로 이동
+  setTimeout(function () {
+    if (left) return;
+    document.getElementById("msg").innerHTML = "네이버 앱에서 열면<br>로그인 없이 바로 구매할 수 있어요.";
+    document.getElementById("manual").className = "";
+  }, 1500);
+  setTimeout(function () { if (!left) location.replace(target); }, 6000);
+})();
+</script>
+</body>
+</html>
